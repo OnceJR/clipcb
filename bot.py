@@ -21,9 +21,10 @@ logger = logging.getLogger(__name__)
 def iniciar_driver():
     options = Options()
     options.add_argument("--headless")  # Modo sin interfaz gráfica
-    options.add_argument("--disable-gpu")  # Deshabilitar GPU
-    options.add_argument("--no-sandbox")  # Necesario para VPS
-
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Previene problemas de memoria
+    options.add_argument("--no-sandbox")  # Necesario para VPS    
+    chrome_options.add_argument("--remote-debugging-port=9222")  # Soluciona problemas de puerto
+    
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     return driver
 
