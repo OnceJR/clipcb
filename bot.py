@@ -18,7 +18,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Configuración de ChromeDriver con Selenium
-def setup_selenium_driver():
+def iniciar_driver():
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Ejecutar en modo headless
     chrome_options.add_argument("--no-sandbox")  # Soluciona problemas en algunos entornos
