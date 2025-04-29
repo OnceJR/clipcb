@@ -6,7 +6,7 @@ from telegram.ext import Updater, MessageHandler, Filters, CallbackContext
 import yt_dlp
 
 # Configura tu token de bot de Telegram aquí
-TELEGRAM_BOT_TOKEN = "AQUI_TU_TOKEN"
+TELEGRAM_BOT_TOKEN = "8031762443:AAHCCahQLQvMZiHx4YNoVzuprzN3s_BM8Es"
 
 # Constantes
 TEMP_VIDEO_FILENAME = "grabacion.mp4"
