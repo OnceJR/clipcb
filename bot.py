@@ -18,14 +18,16 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Configuración de ChromeDriver con Selenium
-def iniciar_driver():
-    options = Options()
-    options.add_argument("--headless")  # Modo sin interfaz gráfica
+def setup_selenium_driver():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Ejecutar en modo headless
+    chrome_options.add_argument("--no-sandbox")  # Soluciona problemas en algunos entornos
     chrome_options.add_argument("--disable-dev-shm-usage")  # Previene problemas de memoria
-    options.add_argument("--no-sandbox")  # Necesario para VPS    
     chrome_options.add_argument("--remote-debugging-port=9222")  # Soluciona problemas de puerto
+
+    # Esto le dice a Selenium que use el ChromeDriver sin abrir una ventana
+    driver = webdriver.Chrome(options=chrome_options)
     
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     return driver
 
 # Función para descargar 30 segundos del stream
