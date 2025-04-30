@@ -1,69 +1,58 @@
 import os
 import logging
 import subprocess
-from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from apscheduler.schedulers.background import BackgroundScheduler
+from uuid import uuid4
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-# Configura el bot
-TOKEN = '8031762443:AAHCCahQLQvMZiHx4YNoVzuprzN3s_BM8Es'
-VIDEO_OUTPUT = 'salida.ts'
+# Configura tu token aquí
+TOKEN = "8031762443:AAHCCahQLQvMZiHx4YNoVzuprzN3s_BM8Es"
 
-# Configura logs
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-logger = logging.getLogger(__name__)
 
-# Función para grabar Stripchat
-async def grabar_stripchat(url: str) -> str | None:
+async def descargar_stream(url: str, output_path: str, duracion: int = 30):
+    comando = [
+        "ffmpeg",
+        "-y",
+        "-i", url,
+        "-t", str(duracion),
+        "-c", "copy",
+        output_path
+    ]
     try:
-        comando = [
-            'streamlink',
-            '--hls-duration', '30s',
-            url, 'best',
-            '-o', VIDEO_OUTPUT
-        ]
         subprocess.run(comando, check=True)
-        return VIDEO_OUTPUT
+        return True
     except subprocess.CalledProcessError as e:
-        logger.error(f"Error al ejecutar streamlink: {e}")
-        return None
+        logging.error(f"Error al ejecutar ffmpeg: {e}")
+        return False
 
-# Handler para mensajes con URLs
-async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    mensaje = update.message.text
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
     chat_id = update.message.chat_id
-
-    if not mensaje.startswith("http"):
-        await context.bot.send_message(chat_id, "Envíame un enlace válido de Stripchat.")
+    if not text.startswith("http"):
         return
 
-    await context.bot.send_message(chat_id, "Grabando 30 segundos de la transmisión, espera...")
-    path = await grabar_stripchat(mensaje)
+    unique_name = f"{uuid4().hex}.mp4"
+    ruta_salida = os.path.join("/tmp", unique_name)
 
-    if path and os.path.exists(path):
+    await context.bot.send_message(chat_id, "Procesando el enlace, espera un momento...")
+
+    exito = await descargar_stream(text, ruta_salida)
+    if exito:
         try:
-            await context.bot.send_video(chat_id, video=open(path, 'rb'))
+            await context.bot.send_video(chat_id=chat_id, video=open(ruta_salida, 'rb'))
+        except Exception as e:
+            logging.error(f"Error al enviar video: {e}")
+            await context.bot.send_message(chat_id, "Hubo un error al enviar el video.")
         finally:
-            os.remove(path)
-            logger.info("Archivo eliminado del servidor.")
+            os.remove(ruta_salida)
     else:
-        await context.bot.send_message(chat_id, "No se pudo grabar el video. Asegúrate de que el enlace esté activo.")
+        await context.bot.send_message(chat_id, "No se pudo procesar el enlace.")
 
-# Start command opcional
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Envíame un enlace de Stripchat para grabar 30 segundos.")
-
-# Scheduler (si necesitas tareas programadas)
-scheduler = BackgroundScheduler()
-scheduler.start()
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler('start', start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, manejar_mensaje))
-
-    logger.info("Bot iniciado")
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.run_polling()
