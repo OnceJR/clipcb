@@ -3,7 +3,7 @@ import logging
 import subprocess
 from uuid import uuid4
 
-import pytz
+from apscheduler.util import get_localzone
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -43,7 +43,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
 
     if not text.startswith("http"):
-        return
+        return  # ignorar mensajes que no sean enlaces
 
     unique_name = f"{uuid4().hex}.mp4"
     ruta_salida = os.path.join("/tmp", unique_name)
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     app = (
         ApplicationBuilder()
         .token(TOKEN)
-        .timezone(pytz.UTC)  # Importante: timezone compatible con pytz
+        .timezone(get_localzone())   # Zona horaria compatible con pytz via apscheduler
         .build()
     )
 
