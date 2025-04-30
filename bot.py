@@ -2,8 +2,7 @@ import os
 import logging
 import subprocess
 from uuid import uuid4
-
-from apscheduler.util import get_localzone
+import pytz
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -67,7 +66,7 @@ if __name__ == "__main__":
     app = (
         ApplicationBuilder()
         .token(TOKEN)
-        .timezone(get_localzone())   # Zona horaria compatible con pytz via apscheduler
+        .timezone(pytz.UTC)  # Usar UTC directamente desde pytz
         .build()
     )
 
