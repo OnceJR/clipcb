@@ -1,7 +1,12 @@
 import subprocess
 import time
 import os
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import pytz
 from pyrogram import Client, filters  # type: ignore
+
+# Asegúrate de configurar la zona horaria correctamente
+scheduler = AsyncIOScheduler(timezone=pytz.timezone('UTC'))  # O la zona horaria que prefieras
 
 # Configuracion de la API
 API_ID = 24738183  # Reemplaza con tu App API ID
