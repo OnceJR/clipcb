@@ -1,6 +1,7 @@
 import subprocess
 import time
 import os
+from telegram.ext import ApplicationBuilder
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import pytz
 from pyrogram import Client, filters  # type: ignore
