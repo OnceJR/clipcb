@@ -84,9 +84,11 @@ async def send_welcome(client, message):
 
 # Ejecutar el bot
 if __name__ == '__main__':
+    # Crear la aplicación del bot
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # Aquí ajustamos el timezone del scheduler
+    # Ajustar la zona horaria en el JobQueue
     app.job_queue.scheduler.configure(timezone=pytz.UTC)
 
+    # Iniciar el bot y comenzar a recibir actualizaciones
     app.run_polling()
