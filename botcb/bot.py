@@ -1,7 +1,7 @@
 import subprocess
 import time
 import os
-from pyrogram import Client, filters # type: ignore
+from pyrogram import Client, filters  # type: ignore
 
 # Configuracion de la API
 API_ID = 24738183  # Reemplaza con tu App API ID
@@ -10,13 +10,17 @@ BOT_TOKEN = "8031762443:AAHCCahQLQvMZiHx4YNoVzuprzN3s_BM8Es"  # Reemplaza con tu
 
 bot = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-def obtener_enlace(url):
+# Función para obtener el enlace con Proxy (con autenticación)
+def obtener_enlace_con_proxy(url):
+    proxy_url = "http://donfumeteo:43712899As$@us-ca.proxymesh.com:31280"  # Tu proxy con autenticación
     command_yt_dlp = [
         'yt-dlp',
         '-f', 'best',
-        '-g',
+        '-g',  # Para obtener el enlace directo del stream
+        '--proxy', proxy_url,  # Configura el proxy con autenticación
         url
     ]
+    
     try:
         output = subprocess.check_output(command_yt_dlp).decode('utf-8').strip()
         return output  # Regresa el enlace del flujo
@@ -24,6 +28,7 @@ def obtener_enlace(url):
         print(f"Error al obtener el enlace: {e}")
         return None
 
+# Función para grabar el clip sin usar Proxy
 async def grabar_clip(url):
     output_file = f'clip_{time.strftime("%Y%m%d_%H%M%S")}.mp4'  # Nombre del clip
     duration = 30  # Duración fija a 30 segundos
@@ -50,11 +55,11 @@ async def process_url(client, message):
     url = message.text
     await message.reply("Obteniendo enlace de transmisión...")
 
-    flujo_url = obtener_enlace(url)  # Obtiene el enlace del flujo
+    flujo_url = obtener_enlace_con_proxy(url)  # Obtiene el enlace del flujo con proxy
 
     if flujo_url:
         await message.reply("Grabando clip de 30 segundos...")
-        clip_path = await grabar_clip(flujo_url)  # Graba el clip
+        clip_path = await grabar_clip(flujo_url)  # Graba el clip sin usar proxy
         
         if clip_path:
             await bot.send_video(message.chat.id, clip_path)
