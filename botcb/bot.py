@@ -5,9 +5,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import pytz
 from pyrogram import Client, filters  # type: ignore
 
-# Asegúrate de configurar la zona horaria correctamente
-scheduler = AsyncIOScheduler(timezone=pytz.timezone('UTC'))  # O la zona horaria que prefieras
-
 # Configuracion de la API
 API_ID = 24738183  # Reemplaza con tu App API ID
 API_HASH = '6a1c48cfe81b1fc932a02c4cc1d312bf'  # Reemplaza con tu App API Hash
@@ -86,4 +83,9 @@ async def send_welcome(client, message):
 
 # Ejecutar el bot
 if __name__ == '__main__':
-    bot.run()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    # Aquí ajustamos el timezone del scheduler
+    app.job_queue.scheduler.configure(timezone=pytz.UTC)
+
+    app.run_polling()
