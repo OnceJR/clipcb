@@ -1,18 +1,23 @@
 import os
 import logging
-import subprocess
+import asyncio
+import tempfile
 from uuid import uuid4
+
 import pytz
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
+    CommandHandler,
     MessageHandler,
     ContextTypes,
     filters,
 )
 
-# Tu token de Telegram
-TOKEN = "8031762443:AAHCCahQLQvMZiHx4YNoVzuprzN3s_BM8Es"
+# Carga el token desde la variable de entorno TELEGRAM_TOKEN
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+if not TOKEN:
+    raise RuntimeError("La variable de entorno TELEGRAM_TOKEN no está definida")
 
 # Logging
 logging.basicConfig(
@@ -21,57 +26,97 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def descargar_stream(url: str, output_path: str, duracion: int = 30) -> bool:
-    comando = [
+async def descargar_stream(url: str, salida: str, duracion: int = 30) -> bool:
+    """
+    Graba un fragmento de stream usando ffmpeg de forma asíncrona.
+    """
+    cmd = [
         "ffmpeg",
         "-y",
         "-i", url,
         "-t", str(duracion),
         "-c", "copy",
-        output_path
+        salida
     ]
     try:
-        subprocess.run(comando, check=True)
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            logger.error(f"ffmpeg falló ({proc.returncode}): {stderr.decode().strip()}")
+            return False
         return True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error al ejecutar ffmpeg: {e}")
+    except asyncio.CancelledError:
+        logger.warning("Descarga cancelada por timeout")
+        return False
+    except Exception as e:
+        logger.exception(f"Error ejecutando ffmpeg: {e}")
         return False
 
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 ¡Hola! Envíame un enlace de vídeo o stream y te devolveré un clip de 30 segundos."
+    )
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    url = update.message.text.strip()
     chat_id = update.message.chat_id
 
-    if not text.startswith("http"):
-        return  # ignorar mensajes que no sean enlaces
+    if not url.lower().startswith(("http://", "https://")):
+        # Ignorar mensajes que no sean enlaces
+        return
 
-    unique_name = f"{uuid4().hex}.mp4"
-    ruta_salida = os.path.join("/tmp", unique_name)
+    # Creamos un archivo temporal único
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+        ruta_salida = tmp.name
 
-    await context.bot.send_message(chat_id, "🔄 Procesando el enlace, espera un momento...")
+    await context.bot.send_message(chat_id, "🔄 Procesando enlace, esto puede tardar unos segundos...")
 
-    exito = await descargar_stream(text, ruta_salida)
-    if exito:
+    # Ejecutamos la descarga con un timeout razonable
+    try:
+        tarea = descargar_stream(url, ruta_salida, duracion=30)
+        exito = await asyncio.wait_for(tarea, timeout=60.0)
+    except asyncio.TimeoutError:
+        logger.error("Timeout al grabar el clip")
+        exito = False
+
+    if exito and os.path.exists(ruta_salida):
         try:
-            with open(ruta_salida, 'rb') as video_file:
-                await context.bot.send_video(chat_id=chat_id, video=video_file)
+            # Enviamos el vídeo y permitimos streaming
+            with open(ruta_salida, "rb") as video:
+                await context.bot.send_video(chat_id=chat_id, video=video, supports_streaming=True)
         except Exception as e:
-            logger.error(f"Error al enviar video: {e}")
-            await context.bot.send_message(chat_id, "❌ Hubo un error al enviar el video.")
+            logger.exception(f"Error enviando vídeo: {e}")
+            await context.bot.send_message(chat_id, "❌ Hubo un error al enviar el vídeo.")
         finally:
-            os.remove(ruta_salida)
+            try:
+                os.remove(ruta_salida)
+            except OSError:
+                logger.warning(f"No se pudo borrar el archivo {ruta_salida}")
     else:
-        await context.bot.send_message(chat_id, "❌ No se pudo procesar el enlace.")
+        await context.bot.send_message(chat_id, "❌ No se pudo procesar el enlace. Verifica que sea válido.")
 
-if __name__ == "__main__":
+def main():
+    # Construye la aplicación
     app = (
         ApplicationBuilder()
         .token(TOKEN)
-        .timezone(pytz.UTC)  # Usar UTC directamente desde pytz
+        .timezone(pytz.UTC)
         .build()
     )
 
+    # Handlers
+    app.add_handler(CommandHandler("start", start_command))
     app.add_handler(
         MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
     )
 
+    # Ejecuta el bot
+    logger.info("Bot iniciado. Esperando mensajes...")
     app.run_polling()
+
+if __name__ == "__main__":
+    main()
